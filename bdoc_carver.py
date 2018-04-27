@@ -3,10 +3,10 @@
 
 # In[ ]:
 
-''' This script will read raw image and apply
+""" This script will read raw image and apply
 header and footer to carve data based on
 those headers and footers.
-'''
+"""
 
 # This addresses Dec 2017 bug on Win10
 # https://bugs.python.org/issue32245
@@ -62,7 +62,7 @@ def discover_sectors(path_to_file_under_examination):
     Mounted images reading rely on MS Windows syntax 
     """
 
-    ### Variables ###
+    # Variables #
 
     start_carve_sector, end_carve_sector = [],[]
     current__cluster,_current__cluster = 0,0
@@ -78,7 +78,7 @@ def discover_sectors(path_to_file_under_examination):
     file.seek(cluster_offset * sector)
     print('Clusters to analyse total:',str(_clusters_total),'...')
 
-    ### Scanning for headers and footers ###
+    # Scanning for headers and footers #
 
     while current__cluster <= _clusters_total:
 
@@ -178,9 +178,11 @@ def recover_data_from_sectors(
     and ending sectors in the image.
     """
 
+    # Variable to hold data #
+
     data = b''
 
-    ### Copy sectors ###
+    # Copy sectors #
 
     if end_carve_sector - start_carve_sector < 51200:  # limitation of size 
         # as for appr 25 MB max. Large-scale web scrapping of registry showed 
