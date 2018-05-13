@@ -1,20 +1,20 @@
-
 # coding: utf-8
-
-# In[ ]:
 
 """ This script will read raw image and apply
 header and footer to carve data based on
-those headers and footers.
+those headers and footers. Optionally an
+algorithmic approach can be applied to copy file tail
 """
+
+import os
+import re
 
 # This addresses Dec 2017 bug on Win10
 # https://bugs.python.org/issue32245
 
-import win_unicode_console, os, logging
-win_unicode_console.enable()
-
-import re
+if os.name == 'nt':
+    import win_unicode_console, logging
+    win_unicode_console.enable()
 
 # Geometry
 
@@ -22,7 +22,15 @@ clusters_per_sectors,sector,cluster_offset,maximum_filesize = 8,512,0,10000
 mounted_size = 0
 _cluster = clusters_per_sectors * sector
 
-path_to_file_under_examination = r'C:\Image\Deleted and formatted volume.001'
+# Image location
+
+path_to_file_under_examination = r'C:\Compile\git\Image_ntfs\Web no files.001'
+
+# 'Algorithmic' or footer
+
+# This is optional 'algorithmic' carving based on
+# reading ZIP Central Directory End Record 'ZIP file comment' size flag
+option = 'footer' # else 'algorithm'
 
 # Signature
 
@@ -43,16 +51,19 @@ header_lenght = 105
 # Perfected header further changed #
 header_hex_code = re.compile(b'^PK\x03\x04(.|\s){26}mimetype(.|\s){0,36}(application\/vnd\.etsi\.asic\-e\+zip|K,\(\\\xc8\xc9LN,\xc9\xcc\xcf\xd3\/\xcbK\xd1K)')
 
-# ZIP footer #
+# ZIP standard footer #
 #footer_hex_code = re.compile(b'PK\x05\x06(.|\s){18}')
 
-# Improved footer #
+# ZIP Improved footer #
 #footer_hex_code = re.compile(b'PK\x05\x06\x00\x00(.|\s){14}.*?(\x00{2}|.*[\w: ])')
 
-# Improved footer further changed #
-footer_hex_code = re.compile(b'PK\x05\x06\x00\x00(.|\s){14}.*?(\x00{2}|.*[ -~])')
+# Apply footers #
+if option == 'algorithm':
+    footer_hex_code = re.compile(b'PK\x05\x06\x00\x00(.|\s){16}')
+else:
+    footer_hex_code = re.compile(b'PK\x05\x06\x00\x00(.|\s){14}.*?(\x00{2}|.*[ -~])')
 
-def discover_sectors(path_to_file_under_examination):
+def discover_sectors(path_to_file_under_examination,option):
 
     """
     This is the function for scanner, which will scan 
@@ -96,7 +107,7 @@ def discover_sectors(path_to_file_under_examination):
 
         try:
             current_cluster = file.read(_cluster)
-        except BaseException as e:
+        except Exception as e:
             return start_carve_sector, end_carve_sector
 
         current__cluster += 1
@@ -134,12 +145,20 @@ def discover_sectors(path_to_file_under_examination):
                     result2 = re.search(footer_hex_code,current_cluster)
                     if result2:
                         if result2.group(0):
-                            if result2.span()[1] == len(current_cluster):
-                                end_carve_sector.append(int(cluster_offset)
-                                 + 1 + (clusters_per_sectors)* (current__cluster))
+                            if option == 'algorithm': # Algorithmic read of flag for tail lenght
+                                if result2.span()[1] + result2.group(0)[21] + result2.group(0)[20] >= len(current_cluster):
+                                    end_carve_sector.append(int(cluster_offset)\
+                                    + 1 + (clusters_per_sectors)* (current__cluster))
+                                else:
+                                    end_carve_sector.append(int(cluster_offset)\
+                                    + (clusters_per_sectors)* (current__cluster))
                             else:
-                                end_carve_sector.append(int(cluster_offset)
-                                 + (clusters_per_sectors)* (current__cluster))
+                                if result2.span()[1] == len(current_cluster):
+                                    end_carve_sector.append(int(cluster_offset)\
+                                     + 1 + (clusters_per_sectors)* (current__cluster))
+                                else:
+                                    end_carve_sector.append(int(cluster_offset)\
+                                     + (clusters_per_sectors)* (current__cluster))
 
                     cluster_tail_2 = file.read(_cluster)[0:sector]  #This
                     # is additional cluster-read, not the same read
@@ -148,12 +167,20 @@ def discover_sectors(path_to_file_under_examination):
                     if result4:
                         if result4.group(0):
                             if result2 is None:
-                                if result4.span()[1] == len(joined_tail_2):
-                                    end_carve_sector.append(int(cluster_offset)
-                                     + 2 + (clusters_per_sectors) * (current__cluster))
+                                if option == 'algorithm': # Algorithmic read of flag for tail lenght
+                                    if result4.span()[1] + result4.group(0)[21] + result4.group(0)[20] >= len(joined_tail_2):
+                                        end_carve_sector.append(int(cluster_offset)\
+                                        + 2 + (clusters_per_sectors) * (current__cluster))
+                                    else:
+                                            end_carve_sector.append(int(cluster_offset)\
+                                            + 1 + (clusters_per_sectors) * (current__cluster))
                                 else:
-                                    end_carve_sector.append(int(cluster_offset)
-                                     + 1 + (clusters_per_sectors) * (current__cluster))
+                                    if result4.span()[1] == len(joined_tail_2):
+                                        end_carve_sector.append(int(cluster_offset)\
+                                        + 2 + (clusters_per_sectors) * (current__cluster))
+                                    else:
+                                        end_carve_sector.append(int(cluster_offset)\
+                                        + 1 + (clusters_per_sectors) * (current__cluster))
 
                     file.seek(cluster_offset*sector
                      + current__cluster*_cluster)
@@ -161,9 +188,9 @@ def discover_sectors(path_to_file_under_examination):
                     if result2 or result4:
                         break
     destination = path_to_file_under_examination.split('\\')[-1]
-    print('Scan complete at cluster: ' +str(current__cluster - 1)
+    print('Scan complete at cluster: ' +str(current__cluster - 1)\
      + ' ' + str(len(start_carve_sector)) +','
-     + str(len(end_carve_sector)) + ' start and end sectors found in '
+     + str(len(end_carve_sector)) + ' start and end sectors found in '\
       + destination)
     file.close()
 
@@ -172,7 +199,7 @@ def discover_sectors(path_to_file_under_examination):
 def recover_data_from_sectors(
     path_to_file_under_examination,
     start_carve_sector,
-    end_carve_sector):
+    end_carve_sector,option):
     """
     This will recover file data based on starting
     and ending sectors in the image.
@@ -185,23 +212,26 @@ def recover_data_from_sectors(
     # Copy sectors #
 
     if end_carve_sector - start_carve_sector < 51200:  # limitation of size 
-        # as for appr 25 MB max. Large-scale web scrapping of registry showed 
+        # as for appr. 25 MB max. Large-scale web scrapping of registry showed 
         # that 72% of documents come with email. It is anecdotically known that
-        # in public sector frequent max size of email attachments is set to 25 MB
+        # frequent max size of email attachments is set to 25 MB
         file = open(path_to_file_under_examination, 'rb')    
         file.seek(start_carve_sector*sector)
         data = file.read((end_carve_sector)*sector
          - start_carve_sector*sector)
         file.close()
-
-        result = re.search(footer_hex_code,data)  # Apply improved 
-        # footer to achieve MD5 match   
-        if result:
-            end = result.span()[1]
-            data = data[0:end]
+        
+        result = re.search(footer_hex_code,data)  # Apply footer
+        if result:            
+            if option == 'footer': # Cut based on footer
+                end = result.span()[1]
+                data = data[0:end]
+            else: # Cut based on algorithmic approach
+                lenght = result.group(0)[21] + result.group(0)[20] # This is Big Endian
+                end = result.span()[1] + lenght
+                data = data[0:end]            
 
     return data
-
 
 def write_recovered_data_to_file(data,destination):
 
@@ -214,8 +244,6 @@ def write_recovered_data_to_file(data,destination):
         file.write(data)
         file.close()
 
-# In[ ]:
-
 if __name__ == "__main__":
     
     ''' Carve files '''
@@ -223,17 +251,17 @@ if __name__ == "__main__":
     carved_files = 0
 
     start_carve_sector,end_carve_sector = discover_sectors(
-        path_to_file_under_examination)
+        path_to_file_under_examination,option)
         
     for start_carve_sector,end_carve_sector in zip(
         start_carve_sector,end_carve_sector):
         data = recover_data_from_sectors(
-            path_to_file_under_examination,start_carve_sector,end_carve_sector)
+            path_to_file_under_examination,start_carve_sector,end_carve_sector,option)
         destination = path_to_file_under_examination.split('\\')[-1]
+        destination = destination.split('/')[-1]
         destination = str(start_carve_sector) + '_' + str(end_carve_sector)\
-        + '_' + destination + '.bdoc'
+         + '_' + destination + '.bdoc'
         write_recovered_data_to_file(data,destination)
         carved_files += 1
 
     print(carved_files,'files carved.')
-
