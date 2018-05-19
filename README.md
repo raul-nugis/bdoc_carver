@@ -8,10 +8,8 @@ Footer: ‘PK\x05\x06\x00\x00.{14}(\x00{2}|.{2}[ -_0-9a-zA-Z]{0,512})’
 
 A custom file type (for example ‘DSD Archive’ ) must be created and the header and footer signatures must be entered into the configuration file ‘File Type Signatures Search.txt’ as depicted below:
 
-![alt text](http://y.delfi.ee/norm/306085/17256300_v1dg1K.png)
+![alt text](http://y.delfi.ee/norm/306085/17256306_rfxjo4.png)
 
-Search at sector boundaries must be enabled as in the picture below:
-
-![alt text](http:// y.delfi.ee/norm/306085/17256302_LKfKLM.png)
+Search at sector boundaries must be enabled as in the picture.
 
 This will create, in the carving results, the files (if there are files to carve) of ‘DSD Archive’ type.
