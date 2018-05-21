@@ -1,2 +1,5 @@
 bdoc_carver
 *.bdoc
+Files*
+Image*
+Pcap*
